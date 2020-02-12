@@ -1,0 +1,1536 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class AudioController : MonoBehaviour
+{
+    public static AudioController instance;
+    public AudioSource AS;
+    public AudioClip song1;
+    public AudioClip song2;
+    bool started;
+    bool firstSong;
+    public AudioSource AS2;
+    public AudioClip enemyHit;
+
+    void Start()
+    {
+        instance = this;
+    }
+
+    void Update()
+    {
+        if(started && !AS.isPlaying)
+        {
+            if (firstSong)
+            {
+                AS.clip = song2;
+                AS.Play();
+            }
+            else
+            {
+                AS.clip = song1;
+                AS.Play();
+            }
+
+            firstSong = !firstSong;
+        }
+    }
+
+    public void StartMusic()
+    {
+        started = true;
+        firstSong = true;
+        AS.clip = song1;
+        AS.Play();
+    }
+
+    public void PlayEnemyHit()
+    {
+        AS2.pitch = Random.Range(0.9f, 1.1f);
+        AS2.PlayOneShot(enemyHit);
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class BulletController : MonoBehaviour
+{
+    public Transform tr;
+    float speed;
+    public SpriteRenderer sr_s;
+
+    void Start()
+    {
+        ColorController.instance.AddSprite(sr_s);
+        speed = 10f;
+    }
+
+    void Update()
+    {
+        tr.Translate(Vector2.up * speed * Time.deltaTime);
+
+        if(tr.position.x > 6f || tr.position.x < -6f || tr.position.y > 6f || tr.position.y < -6f)
+        {
+            Destroy(gameObject);
+        }
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class CameraController : MonoBehaviour
+{
+    public Camera cam;
+    float size1;
+    float size2;
+    float timer;
+    bool goingUp = true;
+    public Transform target;
+    public bool goToTarget;
+    Vector3 vel;
+    Vector3 vel2;
+    void Start()
+    {
+        size1 = 10f;
+        size2 = 11f;
+    }
+    internal void GoToTarget() {
+        goToTarget = true;
+        target = GameObject.FindGameObjectWithTag("Player").transform;
+    }
+    void Update()
+    {
+        timer += Time.deltaTime;
+        if (goToTarget) {
+            this.transform.position = Vector3.SmoothDamp(this.transform.position,target.position+new Vector3(0,0,-10),ref vel,0.4f);
+
+        }
+        ///cam.orthographicSize = Mathf.Lerp(size1, size2, timer/10f);
+
+        if (timer > 10f)
+        {
+            timer = 0f;
+            goingUp = !goingUp;
+            if (goingUp)
+            {
+                size1 = 10f;
+                size2 = 11f;
+            }
+            else
+            {
+                size1 = 10f;
+                size2 =11f;
+            }
+        }
+
+
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using TMPro;
+
+public class ColorController : MonoBehaviour
+{
+    public static ColorController instance;
+
+    public Camera cam;
+    public PlayerController playerController;
+    public SpriteRenderer offscreen;
+    public SpriteRenderer offscreen_s;
+    public SpriteRenderer boundary;
+   // public TMP_Text percentage;
+  //  public TMP_Text score;
+    List<SpriteRenderer> sprites = new List<SpriteRenderer>();
+    public Color[] colors;
+    Color32 previousColor;
+    public Color32 currentColor;
+    Color32 nextColor;
+    float timer = 10;
+    int alpha;
+   
+
+    void Start()
+    {
+        instance = this;
+        sprites.Add(offscreen);
+        sprites.Add(offscreen_s);
+        sprites.Add(boundary);
+        previousColor = cam.backgroundColor;
+        nextColor = cam.backgroundColor;
+        timer = 30;
+    }
+
+    void Update()
+    {
+      
+
+        if (timer >= 30)
+        {
+            timer = 0;
+            PickNewColor();
+        }
+
+        timer += Time.deltaTime;
+
+        currentColor = Color32.Lerp(previousColor, nextColor, timer / 30f);
+
+        for (int i = 0; i < sprites.Count; i++)
+        {
+            if(sprites[i] != null)
+            {
+                sprites[i].color = currentColor;
+            }
+            else
+            {
+                sprites.RemoveAt(i);
+                i--;
+            }
+        }
+        cam.backgroundColor = currentColor;
+
+        if(playerController.percentage > 95)
+        {
+            alpha = 20 + (200 - (playerController.percentage * 2));
+        }
+        else
+        {
+            alpha = 100 + (200 - (playerController.percentage * 2));
+        }
+        if (alpha > 255) alpha = 255;
+        currentColor.a = (byte)alpha;
+     //   percentage.color = currentColor;
+
+        alpha = 20 + (References.gameManager.score * 10);
+        if (alpha > 255) alpha = 255;
+        currentColor.a = (byte)alpha;
+        //score.color = currentColor;
+    }
+
+    void PickNewColor()
+    {
+        previousColor = nextColor;
+        while (nextColor.Equals(previousColor))
+        {
+            nextColor = colors[Random.Range(0, colors.Length)];
+        }
+    }
+
+    public void AddSprite(SpriteRenderer sr)
+    {
+        sprites.Add(sr);
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class CursorController : MonoBehaviour
+{
+    public Transform cursor;
+    public SpriteRenderer sr_s;
+    public Camera cam;
+
+    void Start()
+    {
+        Cursor.visible = false;
+        ColorController.instance.AddSprite(sr_s);
+    }
+
+    void Update()
+    {
+        cursor.position = cam.ScreenToWorldPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, 10f));
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class EnemyController : MonoBehaviour
+{
+    public GameObject particles;
+    private Transform playerTR;
+   private Transform stageTR;
+  //  public Transform tr;
+    private Rigidbody2D rigidbody2;
+    public SpriteRenderer sr_s;
+
+    public float speed = 0.1f;
+    float maxSpeed;
+
+    private Renderer particles_s;
+    public ParticleSystem ps;
+    public ParticleSystem ps_s;
+     public float  seed;
+    public float pushForce = 3;
+    ParticleSystem.MainModule main;
+    Vector2 direction;
+
+    Vector2 externForce;
+    float forceDuration = 1f;
+    float forceTime;
+    bool applingForce;
+
+    float idleTime;
+    float idleDuration;
+    bool idle;
+    void AddForce(Vector2 force)
+    {
+        externForce = force;
+
+        applingForce = true;
+        forceTime = Time.time + forceDuration;
+    }
+    void Start()
+    {
+        rigidbody2 = GetComponent<Rigidbody2D>();
+        playerTR = GameObject.Find("player").transform;
+        stageTR = GameObject.Find("Stage").transform;
+        //ColorController.instance.AddSprite(sr_s);
+        maxSpeed = Random.Range(1.5f, 2.75f);
+    }
+
+    void Update()
+    {
+        direction = playerTR.position - transform.position;
+        direction.Normalize();
+        if(!applingForce)
+        transform.up = direction;
+    }
+
+    void FixedUpdate()
+    {
+        /* rb.AddForce(tr.up * speed * Time.deltaTime);
+         if (Vector2.Distance(stageTR.position, tr.position) < 4.5f || Vector2.Distance(stageTR.position, tr.position) > 6f)
+         {
+             rb.velocity = Vector2.ClampMagnitude(rb.velocity, maxSpeed);
+         }
+         else
+         {
+             rb.velocity = Vector2.ClampMagnitude(rb.velocity, 0.5f);
+         }*/
+        rigidbody2.velocity = direction * speed+externForce;
+
+        if (applingForce && forceTime < Time.time)
+        {
+            applingForce = false;
+            externForce = Vector2.zero;
+        }
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Player"))
+        {
+            collision.gameObject.SendMessage("AddForce",direction.normalized*pushForce);
+        }
+            if (collision.gameObject.CompareTag("Bullet")|| collision.gameObject.CompareTag("Circle")&&applingForce)
+        {
+            particles.transform.position = transform.position;
+            particles.transform.parent = transform.parent;
+
+            seed = Random.Range(0, 1000);
+            ps.randomSeed = (uint)seed;
+            ps_s.randomSeed = (uint)seed;
+            main = ps_s.main;
+            Color32 c = ColorController.instance.currentColor;
+            c.a = 255;
+            main.startColor = new ParticleSystem.MinMaxGradient(c, c);
+            particles.SetActive(true);
+
+            //AudioController.instance.PlayEnemyHit();
+            References.gameManager.GiveAPoint();
+            References.soundManager.PlaySound(SoundId.EnemyHitSound);
+
+            //Destroy(collision.gameObject);
+            Destroy(this.gameObject);
+        }
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class EnemyParticlesController : MonoBehaviour
+{
+    float timer;
+
+    void Update()
+    {
+        timer += Time.deltaTime;
+
+        if(timer >= 1)
+        {
+            Destroy(gameObject);
+        }
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class EnemySpawner : MonoBehaviour
+{
+    public bool blocked;
+    float frequency = 0.9f;
+    public float timer;
+
+    public GameObject enemy;
+    GameObject obj;
+    int r;
+    bool first = true;
+    Vector2 pos;
+    float radius = 5.7f;
+   
+    void Update()
+    {
+        if (References.gameManager.gameState == GameState.InGame&&!blocked)
+        {
+            timer += Time.deltaTime;
+
+            if (timer > frequency)
+            {
+                timer = 0;
+                obj = Instantiate(enemy);
+
+                pos = Random.insideUnitCircle.normalized * radius;
+                obj.transform.position = new Vector2(pos.x, pos.y);
+
+                /*
+                int r = Random.Range(1, 5);
+
+                if (r == 1)
+                {
+                    obj.transform.position = new Vector2(Random.Range(-6f, 6f), -6f);
+                }
+                else if (r == 2)
+                {
+                    obj.transform.position = new Vector2(Random.Range(-6f, 6f), 6f);
+                }
+                else if (r == 3)
+                {
+                    obj.transform.position = new Vector2(-6f, Random.Range(-6f, 6f));
+                }
+                else if (r == 4)
+                {
+                    obj.transform.position = new Vector2(6f, Random.Range(-6f, 6f));
+                }*/
+            }
+        }
+    }
+
+    public void Restart()
+    {
+        timer = frequency;
+        /*
+        if (first)
+        {
+            timer = frequency;
+            first = false;
+            return;
+        }
+
+        timer = 0;
+        obj = Instantiate(enemy);
+
+        pos = Random.insideUnitCircle.normalized * radius;
+        obj.transform.position = new Vector2(pos.x, pos.y);*/
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class FakeParticleController : MonoBehaviour
+{
+    public SpriteRenderer sr_s;
+    void Start()
+    {
+        ColorController.instance.AddSprite(sr_s);
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class FighterController : MonoBehaviour
+{
+    //internal SkinPlayerController skinPlayer;
+
+    // public GameObject impact;
+    // public GameObject smoke;
+    // public GameObject smokeEnd;
+    public GameObject sprite;
+
+
+    public GameObject circle;
+    public float pushForce = 3;
+    public float circleRadio;
+    public float scaleDelta = 0.001f;
+    //inside class
+    public Vector2 firstPressPos;
+    public Vector2 secondPressPos;
+    public Vector2 currentSwipe;
+    Vector2 swipeTarget;
+    public float distance;
+    float radioDistance;
+    public float maxRadioDistance = 10;
+    public float maxScale = 10;
+    Vector2 scale;
+    public float force = 10;
+    Vector3 lastGroundedPosition;
+    float smokeTime;
+    bool smoking;
+    public bool reloading;
+    public float reloadTime;
+    public float reloadDuration = 1;
+    public int ammo = 5;
+    public int ammoAvailable = 5;
+    public float distanceBetweenCircleAndSkull;
+    Vector2 vel;
+    Vector2 firstTouch;
+    Rigidbody2D rigidbody2;
+    Vector2 externForce;
+    float forceDuration = 0.5f;
+    float forceTime;
+    bool applingForce;
+    public bool enemyPushed;
+    public GameObject dieEffect;
+
+    void AddForce(Vector2 force) {
+        if (enemyPushed) {
+            enemyPushed = false;
+            externForce = force * 0.5f;
+            applingForce = true;
+            forceTime = Time.time + forceDuration * 0.5f;
+            return;
+        }
+        externForce = force;
+        applingForce = true;
+        forceTime = Time.time + forceDuration;
+    }
+    public void SetAmmoAvailable(int x)
+    {
+        ammoAvailable = x;
+        ammo = x;
+
+    }
+    public void StartGame() {
+
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Enemy"))
+        {
+            enemyPushed = true;
+            collision.gameObject.SendMessage("AddForce", rigidbody2.velocity.normalized * pushForce);
+        }
+
+        if (collision.gameObject.CompareTag("Circle"))
+        {
+            dieEffect.SetActive(true);
+            dieEffect.transform.parent = null;
+            sprite.SetActive(false);
+            References.gameManager.GameOver();
+        }
+
+    }
+    internal void RestartGame() {
+        dieEffect.SetActive(false);
+        sprite.SetActive(true);
+        dieEffect.transform.position = this.transform.position;
+        dieEffect.transform.parent = this.transform;
+        this.transform.position = Vector2.zero;
+        this.transform.rotation = Quaternion.identity;
+    }
+    void Shoot() {
+        if (!reloading)
+        {
+            float angle = Mathf.Atan2(currentSwipe.normalized.y, currentSwipe.normalized.x) * Mathf.Rad2Deg;
+
+            this.transform.rotation = Quaternion.Euler(0,0,angle);
+             rigidbody2.AddForce(-currentSwipe.normalized * distanceBetweenCircleAndSkull * force, ForceMode2D.Impulse);
+            //this.GetComponent<Rigidbody2D>().AddForce(currentSwipe.normalized * distance * force, ForceMode2D.Impulse);
+            if (this.GetComponent<Rigidbody2D>().velocity.y < 0)
+               rigidbody2.velocity += -currentSwipe.normalized * distanceBetweenCircleAndSkull * force;
+            else {
+               rigidbody2.velocity = -currentSwipe.normalized * distanceBetweenCircleAndSkull * force;
+
+            }
+
+           // impact.transform.position = circle.transform.position;
+            //impact.SetActive(true);
+            //impact.transform.parent = null;
+            circle.transform.parent = null;
+            smoking = true;
+            smokeTime = Time.time + 0.4f;
+           // smoke.SetActive(true);
+            ammo--;
+            if (ammo <= 0)
+            {
+                ammo = ammoAvailable;
+            }
+            reloadTime = Time.time + reloadDuration;
+            reloading = true;
+           // References.gameManager.ReloadAmmoImages(ammo);
+        }
+    }
+    public void Swipe()
+    {
+        
+        if (Input.GetMouseButtonDown(0))
+        {
+           
+            firstPressPos =Camera.main.ScreenToWorldPoint( Input.mousePosition);
+            firstPressPos = References.player.transform.position;
+        }
+        if (Input.GetMouseButton(0))
+        {
+            circle.transform.position = (Vector2)References.player.transform.position + currentSwipe.normalized * radioDistance;
+            distanceBetweenCircleAndSkull = Vector2.Distance(References.player.transform.position, circle.transform.position);
+
+            //save ended touch 2d point
+            secondPressPos = Camera.main.ScreenToWorldPoint(new Vector2(Input.mousePosition.x, Input.mousePosition.y));
+
+            //secondPressPos =new Vector2(Input.mousePosition.x, Input.mousePosition.y);
+            //create vector from the two points
+            swipeTarget = new Vector2(secondPressPos.x - firstPressPos.x, secondPressPos.y - firstPressPos.y);
+
+            //normalize the 2d vector
+            // currentSwipe.Normalize();
+        }
+        else {
+            circle.transform.position = this.transform.position;
+        }
+        if (Input.GetMouseButtonUp(0))
+        {
+            Shoot();
+            //save began touch 2d point
+            firstPressPos = Vector2.zero;
+            secondPressPos = Vector2.zero;
+            swipeTarget = Vector2.zero;
+            
+        }
+        currentSwipe = Vector2.SmoothDamp(currentSwipe, swipeTarget, ref vel, 0.3f);
+
+    }
+  
+    void Start()
+    {
+       // skinPlayer = GetComponent<SkinPlayerController>();
+  
+        circle.transform.parent = null;
+        circle.transform.rotation = Quaternion.identity;
+        rigidbody2 = GetComponent<Rigidbody2D>();
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+
+        if (References.gameManager.gameState == GameState.InGame)
+        {
+            rigidbody2.velocity = rigidbody2.velocity + externForce;
+            if (applingForce && forceTime <Time.time) {
+                applingForce = false;
+                externForce = Vector2.zero;
+            }
+            if (smoking && Time.time > smokeTime)
+            {
+                // smoke.SetActive(false);
+                smoking = false;
+                // smokeEnd.SetActive(true);
+
+            }
+
+
+            Swipe();
+
+            distance = Vector2.Distance(firstPressPos, secondPressPos);
+            radioDistance = distance * circleRadio;
+            if (radioDistance > maxRadioDistance)
+            {
+                radioDistance = maxRadioDistance;
+            }
+            /*scale.x = scale.y = distance * scaleDelta;
+            if (scale.x > maxScale)
+            {
+                scale.x = scale.y = maxScale;
+            }
+            circle.transform.localScale = new Vector3(scale.x, scale.y, 0);
+            */
+
+            if (reloading && Time.time > reloadTime)
+            {
+                reloading = false;
+
+            }
+        }
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class GameController : MonoBehaviour
+{
+
+    /*
+    public static GameController instance;
+    public PlayerController playerController;
+    public PointController pointController;
+    GameObject[] objs;
+    public int state; // 0 = press start, 1 = intro, 2 = game, 3 = end
+    public EnemySpawner enemySpawner;
+
+    void Start()
+    {
+        instance = this;
+    }
+
+    public void ResetGame()
+    {
+        objs = GameObject.FindGameObjectsWithTag("Enemy");
+        foreach(GameObject obj in objs)
+        {
+            Destroy(obj);
+        }
+        objs = GameObject.FindGameObjectsWithTag("Bullet");
+        foreach (GameObject obj in objs)
+        {
+            Destroy(obj);
+        }
+
+        Time.timeScale = 1f;
+
+        playerController.tr.position = Vector3.zero;
+        playerController.tr.rotation = Quaternion.identity;
+        playerController.rb.velocity = Vector3.zero;
+        playerController.sr.enabled = true;
+        playerController.sr_s.enabled = true;
+        playerController.particles.SetActive(false);
+        playerController.RecoverPercentage();
+        playerController.hit = false;
+        pointController.ChangePlace();
+        enemySpawner.Restart();
+        ScoreController.instance.ResetScore();
+    }
+
+    public void StartGame()
+    {
+        state = 2;
+    }*/
+
+}
+using System.Collections;
+using System.Collections.Generic;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+public enum GameState{
+    InMainScreen=0,
+    InGame=1,
+    GameOver=2,
+    EndGame=3
+}
+public class GameManager : MonoBehaviour
+{
+
+    public bool startGame;
+    public GameObject mainScreen;
+    public GameObject gameOverScreen;
+    public GameState gameState=GameState.InMainScreen;
+    public int score;
+    public TextMeshProUGUI scoreText;
+    private void Start()
+    {
+        scoreText.text = score.ToString();
+
+        References.soundManager.PlayMusic(SoundId.MainMusic);
+        if (startGame) {
+            StartGame();
+        }
+    }
+    public void GiveAPoint() {
+        if (gameState == GameState.InGame)
+        {
+            score++;
+            scoreText.text = score.ToString();
+        }
+    }
+    public void StartGame() {
+        mainScreen.SetActive(false);
+        gameState = GameState.InGame;
+        References.camera.GoToTarget();
+     //   References.enemySpawner.
+       // References.enemySpawner.
+    }
+    public void GameOver() {
+        GameObject[] enemy = GameObject.FindGameObjectsWithTag("Enemy");
+        foreach (var g in enemy) {
+            //Destroy(g.gameObject.GetComponent<EnemyController>());
+            g.SendMessage("AddForce", new Vector2(Random.Range(-1, 1) + 0.1f, Random.Range(-1, 1) + 0.1f) * Random.Range(56, 78));
+           // g.GetComponent<Rigidbody2D>().AddForce(new Vector2(Random.Range(-1,1)+0.1f,Random.Range(-1,1)+0.1f)*Random.Range(56,78),ForceMode2D.Impulse);
+            Destroy(g.gameObject,6);
+        }
+        gameState = GameState.GameOver;
+        gameOverScreen.SetActive(true);
+    }
+    public void RestartGame()
+    {
+        score = 0;
+        scoreText.text = score.ToString();
+
+        gameOverScreen.SetActive(false);
+        gameState = GameState.InGame;
+        References.camera.GoToTarget();
+        References.player.RestartGame();
+      //   References.player.res
+        //   References.enemySpawner.
+        // References.enemySpawner.
+    }
+    
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using TMPro;
+using UnityEngine.SceneManagement;
+
+public class InputController : MonoBehaviour
+{
+    public static InputController instance;
+
+    public TMP_Text percentageText;
+    public PlayerController playerController;
+    public bool leftClick;
+    public bool rightClick;
+    public bool enter;
+    public bool escape;
+    public bool credits;
+
+    public bool playerInputEnabled = true;
+
+    bool inputGet;
+    bool paused;
+    float tScale;
+
+    void Start()
+    {
+        instance = this;
+    }
+
+    void Update()
+    {
+        inputGet = false;
+        leftClick = false;
+        rightClick = false;
+        enter = false;
+        escape = false;
+        credits = false;
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            leftClick = true;
+        }
+        if (Input.GetMouseButton(1))
+        {
+            rightClick = true;
+        }
+        if (Input.GetKeyDown("return") || Input.GetKeyDown("space"))
+        {
+            enter = true;
+        }
+        if (Input.GetKeyDown("escape"))
+        {
+            escape = true;
+        }
+        if (Input.GetKeyDown("c"))
+        {
+            credits = true;
+        }
+
+        inputGet = true;
+
+        if(References.gameManager.gameState == GameState.InGame)
+        {
+            if (enter)
+            {
+                if (paused)
+                {
+                    paused = false;
+                    playerInputEnabled = true;
+                    percentageText.text = playerController.percentage + "";
+                    Time.timeScale = tScale;
+                }
+                else
+                {
+                    paused = true;
+                    playerInputEnabled = false;
+                    tScale = Time.timeScale;
+                    percentageText.text = "---";
+                    Time.timeScale = 0;
+                }
+            }
+
+            if (escape)
+            {
+                Time.timeScale = 1;
+                SceneManager.LoadScene("Game");
+            }
+        }else if (References.gameManager.gameState== GameState.EndGame)
+        {
+            if (escape)
+            {
+                Time.timeScale = 1;
+                SceneManager.LoadScene("Game");
+            }
+        }
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using TMPro;
+
+public class IntroProxy : MonoBehaviour
+{
+    public TMP_Text percentage;
+
+    public GameObject particles;
+
+    void ReducePercentage()
+    {
+        string s = percentage.text;
+        int n = int.Parse(s);
+        n--;
+        percentage.text = n + "";
+    }
+
+    void RecoverPercentage()
+    {
+        percentage.text = "100";
+    }
+
+    void PlayerDead()
+    {
+        particles.SetActive(true);
+    }
+
+    void DeactivateParticles()
+    {
+        particles.SetActive(false);
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public class MainMenuController : MonoBehaviour
+{
+
+    /*
+    public Animator creditsAnim;
+    public Animator menuAnim;
+    public GameObject intro;
+    public Animator introAnim;
+    public Animator camAnim;
+
+    bool buttonPressed;
+    bool inCredits;
+    float timer;
+
+
+    void Start()
+    {
+        
+    }
+
+    void Update()
+    {
+        if(GameController.instance.state == 0 && !buttonPressed)
+        {
+            if (!inCredits)
+            {
+                if (InputController.instance.credits)
+                {
+                    creditsAnim.SetTrigger("in");
+                    menuAnim.SetTrigger("out");
+                    inCredits = true;
+                }
+                else if (InputController.instance.enter)
+                {
+                    GameController.instance.state = 1;
+                    buttonPressed = true;
+                    menuAnim.SetTrigger("out");
+                    intro.SetActive(true);
+                    introAnim.SetTrigger("action");
+                    AudioController.instance.StartMusic();
+                    timer = 0;
+                }
+                else if (InputController.instance.escape)
+                {
+                    buttonPressed = true;
+                    Application.Quit();
+                }
+            }
+            else
+            {
+                if (InputController.instance.credits || InputController.instance.enter || InputController.instance.escape)
+                {
+                    creditsAnim.SetTrigger("out");
+                    menuAnim.SetTrigger("in");
+                    inCredits = false;
+                }
+            }
+        }
+
+        if (GameController.instance.state == 1)
+        {
+            timer += Time.deltaTime;
+
+            if (timer >= 46f && !ColorController.instance.start)
+            {
+                ColorController.instance.start = true;
+            }
+
+            if (timer >= 57.4f)
+            {
+                Invoke("StartGame", 1f);
+                camAnim.SetTrigger("game");
+                buttonPressed = false;
+                timer = 0;
+            }
+
+            if(timer > 1f && InputController.instance.enter)
+            {
+                intro.SetActive(false);
+                Invoke("StartGame", 1f);
+                camAnim.SetTrigger("game");
+                buttonPressed = false;
+                timer = 0;
+                ColorController.instance.start = true;
+            }
+
+            if (timer > 1f && InputController.instance.escape)
+            {
+                Time.timeScale = 1;
+                SceneManager.LoadScene("Game");
+            }
+        }
+    }
+
+    void StartGame()
+    {
+        GameController.instance.StartGame();
+    }*/
+
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class ParticlesDestroyer : MonoBehaviour
+{
+    float timer;
+    public bool onlyDesactivate;
+    void Update()
+    {
+        timer += Time.deltaTime;
+
+        if(!onlyDesactivate&&timer >= 1)
+        {
+            Destroy(gameObject);
+        }
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using TMPro;
+
+public class PlayerController : MonoBehaviour
+{
+    public GameObject sprite;
+    public Rigidbody2D rb;
+    public Transform tr;
+    public GameObject bullet;
+    public SpriteRenderer sr;
+    public SpriteRenderer sr_s;
+    public Camera cam;
+    public Transform boundaryCircleTR;
+    public TMP_Text percentageText;
+    float boundaryCircleRad = 4.25f;
+    public GameObject particles;
+    public Renderer particles_s;
+    public ParticleSystem ps;
+    public ParticleSystem ps_s;
+    int seed;
+    ParticleSystem.MainModule main;
+
+    float speed = 700f;
+    public int percentage;
+
+    GameObject obj;
+    Vector3 pos;
+    public bool hit;
+    float timer;
+
+    public AudioSource AS1;
+    public AudioClip shootClip;
+    public AudioClip hitClip;
+    public AudioClip shatterClip;
+    float pitchS;
+
+    void Start()
+    {
+        ColorController.instance.AddSprite(sr_s);
+        percentage = 100;
+    }
+
+    void Update()
+    {
+        if (References.gameManager.gameState == GameState.InGame)
+        {
+
+            if (InputController.instance.playerInputEnabled)
+            {
+                if (hit)
+                {
+                    timer += Time.fixedDeltaTime;
+                    if (timer >= 1.5f)
+                    {
+                        References.gameManager.RestartGame();
+                    }
+                }
+                else
+                {
+                    ManageInput();
+                }
+            }
+            ManageBoundary();
+        }
+    }
+
+    void ManageInput()
+    {
+        if (InputController.instance.rightClick)
+        {
+            rb.AddForce(tr.up * speed * Time.deltaTime);
+        }
+        rb.velocity = Vector2.ClampMagnitude(rb.velocity, 5f);
+
+
+        if (InputController.instance.leftClick)
+        {
+            if (Random.Range(1, 101) <= percentage)
+            {
+                obj = Instantiate(bullet);
+                obj.transform.position = tr.position + (tr.up * 0.5f);
+                obj.transform.rotation = tr.rotation;
+                percentage--;
+                percentageText.text = percentage + "";
+                PlayShoot();
+            }
+            else if(!hit)
+            {
+                hit = true;
+                timer = 0;
+
+                particles.transform.position = tr.position;
+                seed = Random.Range(0, 1000);
+                ps.randomSeed = (uint)seed;
+                ps_s.randomSeed = (uint)seed;
+                main = ps_s.main;
+                Color32 c = ColorController.instance.currentColor;
+                c.a = 255;
+                main.startColor = new ParticleSystem.MinMaxGradient(c, c);
+                particles.SetActive(true);
+                
+
+                sr.enabled = false;
+                sr_s.enabled = false;
+                /*
+                obj = Instantiate(bullet);
+                obj.transform.position = tr.position + (tr.up * 0.5f);
+                pos = tr.position - obj.transform.position;
+                pos.z = 0;
+                obj.transform.up = pos;
+                */
+
+                PlayShatter();
+                Time.timeScale = 0.5f;
+            }
+        }
+
+        // turn
+        pos = cam.ScreenToWorldPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, 0f));
+        pos.z = 0;
+        tr.up = pos - tr.position;
+    }
+
+    void ManageBoundary()
+    {
+        /*
+        pos = Vector3.ClampMagnitude(tr.position, boundaryCircleRad);
+        tr.position = pos;
+        */
+    }
+
+    public void RecoverPercentage()
+    {
+        percentage = 100;
+        percentageText.text = percentage + "";
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Enemy") && !hit)
+        {
+            hit = true;
+            timer = 0;
+            PlayHit();
+            Time.timeScale = 0.5f;
+        }
+    }
+
+    void PlayShoot()
+    {
+        pitchS = 1f + (100 - percentage) / 50f;
+        if (pitchS > 2) pitchS = 2;
+        AS1.pitch = pitchS;
+        AS1.PlayOneShot(shootClip);
+    }
+
+    void PlayHit()
+    {
+        AS1.pitch = Random.Range(0.9f, 1.1f);
+        AS1.PlayOneShot(hitClip);
+    }
+
+    void PlayShatter()
+    {
+        AS1.pitch = Random.Range(0.9f, 1.1f);
+        AS1.PlayOneShot(shatterClip);
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class PointController : MonoBehaviour
+{
+    public Transform tr;
+    public Transform playerTR;
+    public PlayerController playerController;
+    public SpriteRenderer sr_s;
+    Vector3 pos;
+
+    void Start()
+    {
+        ColorController.instance.AddSprite(sr_s);
+        ChangePlace();
+    }
+
+
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.CompareTag("Player"))
+        {
+            playerController.RecoverPercentage();
+            References.gameManager.GiveAPoint();
+          //  ScoreController.instance.RaiseScore();
+            ChangePlace();
+        }
+    }
+
+    public void ChangePlace()
+    {
+        pos = Random.insideUnitCircle * 4f;
+        while(Vector2.Distance(pos, playerTR.position) < 3.5f)
+        {
+            pos = Random.insideUnitCircle * 4f;
+        }
+        tr.position = pos;
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class References : MonoBehaviour
+{
+    public static FighterController player;
+    public static EnemySpawner enemySpawner;
+    public static  GameManager gameManager;
+    public static CameraController camera;
+    public static SoundManager soundManager;
+    void Awake()
+    {
+        if (player == null) {
+
+            player = FindObjectOfType<FighterController>();
+
+        }
+        if (enemySpawner == null)
+        {
+            enemySpawner = FindObjectOfType<EnemySpawner>();
+
+        }
+        if (gameManager == null)
+        {
+            gameManager = FindObjectOfType<GameManager>();
+
+        }
+        if (camera == null)
+        {
+            camera = FindObjectOfType<CameraController>();
+
+        }
+        if (soundManager == null)
+        {
+           soundManager = FindObjectOfType<SoundManager>();
+
+        }
+
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        if (camera == null)
+        {
+            camera = FindObjectOfType<CameraController>();
+
+        }
+        if (player == null)
+        {
+            player = FindObjectOfType<FighterController>();
+
+        }
+        if (enemySpawner == null)
+        {
+            enemySpawner = FindObjectOfType<EnemySpawner>();
+
+        }
+        if (gameManager == null)
+        {
+            gameManager = FindObjectOfType<GameManager>();
+
+        }
+        if (soundManager == null)
+        {
+            soundManager = FindObjectOfType<SoundManager>();
+
+        }
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using TMPro;
+
+public class ScoreController : MonoBehaviour
+{
+
+    /*
+    public static ScoreController instance;
+    public TMP_Text scoreText;
+    public Animator cam;
+
+    public int score;
+
+    public AudioSource AS1;
+    public AudioClip clip;
+    public AudioClip wohoo;
+
+    bool end;
+    public AudioSource musicAS;
+
+    void Start()
+    {
+        instance = this;
+        ResetScore();
+    }
+
+    void Update()
+    {
+        if (end && musicAS.volume > 0)
+        {
+            musicAS.volume -= Time.deltaTime / 10f;
+        }
+    }
+
+    public void RaiseScore()
+    {
+        score++;
+        UpdateScore();
+
+        PlayScore();
+
+        if (score >= 11 && !end)
+        {
+            GameController.instance.state = 3;
+            cam.SetTrigger("end");
+            Invoke("Reset", 1f);
+            Invoke("PlayCheer", 5f);
+            end = true;
+        }
+    }
+
+    public void ResetScore()
+    {
+        score = 0;
+        UpdateScore();
+    }
+
+    void UpdateScore()
+    {
+        scoreText.text = score + "";
+    }
+
+    void PlayScore()
+    {
+        AS1.pitch = 1 + score/20f;
+        AS1.PlayOneShot(clip);
+    }
+
+    void PlayCheer()
+    {
+        AS1.pitch = 1;
+        AS1.PlayOneShot(wohoo);
+    }
+
+    void Reset()
+    {
+        GameController.instance.ResetGame();
+    }
+    */
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class ShadowController : MonoBehaviour
+{
+    public Transform tr;
+    public Transform parentTR;
+    public float x;
+    public float y;
+
+    void Update()
+    {
+        tr.position = new Vector2(parentTR.position.x + x, parentTR.position.y + y);
+    }
+}
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using System;
+[Serializable]
+public class SoundObject{
+   public string name;
+   public SoundId soundId;
+   public GameObject gameObject;
+
+}
+
+
+public enum SoundId{
+   HappyMusic,
+   InGameMusic,
+   MainMusic,
+   EnemyHitSound
+
+}
+
+
+
+public class SoundManager : MonoBehaviour
+{
+    public List<SoundObject> sounds;
+    public GameObject currentMusic;
+    Vector2 targetPitch;
+    Vector2 pitch;
+    public float damp;
+    Vector2 velocity;
+    public bool changePitch;
+    public void IncreasePitch() {
+        changePitch = true;
+        targetPitch.x = 1;
+    }
+    public void ReducePitch() {
+        changePitch = true;
+        targetPitch.x = 0.6f;
+    }
+    private void Update()
+    {
+        if (changePitch) {
+            pitch = Vector2.SmoothDamp(pitch, targetPitch, ref velocity, damp);
+           
+            if (currentMusic != null) {
+                currentMusic.GetComponent<AudioSource>().pitch = pitch.x;
+            }
+            if (pitch.x == targetPitch.x)
+            {
+                changePitch = false;
+            }
+        }
+    }
+
+
+    public void PlaySound(SoundId id){
+        List < SoundObject > ss = sounds.FindAll(x => x.soundId == id && !x.gameObject.activeSelf);
+        if (ss != null && ss.Count > 0)
+        {
+            SoundObject s = ss[UnityEngine.Random.Range(0, ss.Count - 1)];
+
+            if (s != null)
+            {
+                s.gameObject.SetActive(true);
+
+            }
+        }
+   
+   
+   }
+   public void PlayMusic(SoundId id){
+       SoundObject s=sounds.Find(x=>x.soundId==id);
+       if(currentMusic!=null){
+       currentMusic.SetActive(false);
+       
+       }
+
+        if(s!=null){
+         s.gameObject.SetActive(true);
+            currentMusic = s.gameObject;
+       }
+   
+   
+   }
+    public void StopMusic(SoundId id)
+    {
+        SoundObject s = sounds.Find(x => x.soundId == id );
+        if (currentMusic != null)
+        {
+            currentMusic.SetActive(false);
+
+        }
+
+        if (s != null)
+        {
+            s.gameObject.SetActive(false);
+            currentMusic = s.gameObject;
+        }
+
+
+    }
+
+
+}

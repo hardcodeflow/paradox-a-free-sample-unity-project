@@ -1,0 +1,16 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs/ParadoxCodeWriter/v16
+/Library
+/obj/Debug
+/PlayStore
+/ProjectSettings
+/Temp
+/Threshold.sln
+/Logs
+/Assets/Big Action Music Bundle
+/Assets/MobileBloom
+/Assets/Plugins
+/Assets/PlayServicesResolver
